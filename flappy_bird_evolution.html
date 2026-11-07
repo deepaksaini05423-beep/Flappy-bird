@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Bird Evolution</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden}
+body{background:#101827;font-family:Arial,sans-serif;display:flex;align-items:center;justify-content:center;color:white}
+#game{position:relative;width:min(100vw,420px);height:min(100vh,740px);overflow:hidden;background:#70d6ff}
+canvas{width:100%;height:100%;display:block;touch-action:manipulation}
+#hud{position:absolute;top:18px;width:100%;text-align:center;pointer-events:none;text-shadow:0 2px 5px #333}
+#score{font-size:48px;font-weight:bold}
+#message{font-size:17px;margin-top:8px}
+#overlay{position:absolute;inset:0;background:#07111dcc;display:flex;align-items:center;justify-content:center;text-align:center;padding:25px}
+.panel{background:#17243a;padding:30px 22px;border-radius:22px;width:100%;box-shadow:0 10px 40px #0008}
+h1{font-size:29px;margin-bottom:12px}
+p{color:#cbd5e1;line-height:1.6}
+button{border:0;background:#ffca3a;color:#172033;font-weight:bold;font-size:18px;padding:14px 30px;border-radius:30px;margin-top:22px;cursor:pointer}
+#hint{font-size:12px;margin-top:18px;color:#9caec5}
+</style>
+</head>
+<body>
+<div id="game">
+<canvas id="canvas"></canvas>
+<div id="hud"><div id="score">0</div><div id="message">Believe in yourself!</div></div>
+<div id="overlay">
+  <div class="panel">
+    <h1 id="title">FLAPPY EVOLUTION</h1>
+    <p id="description">A new adventure begins.<br>Fly through the world and beat your record!</p>
+    <button id="start">START GAME</button>
+    <div id="hint">TAP OR PRESS SPACE TO FLY</div>
+  </div>
+</div>
+</div>
+<script>
+"use strict";
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
+const game=document.getElementById("game");
+let W=420,H=740,bird,pipes=[],score=0,best=0,frame=0,running=false,started=false,theme=0,messageTimer=0,message="";
+const themes=[
+ {sky:"#70d6ff",ground:"#72c66b",pipe:"#36a852"},
+ {sky:"#ffad69",ground:"#bb754c",pipe:"#a9d64b"},
+ {sky:"#17264d",ground:"#263b59",pipe:"#46b9b0"},
+ {sky:"#737e91",ground:"#485566",pipe:"#b7c5d5"}
+];
+const messages=["YOU CAN DO THIS!","KEEP GOING!","EVERY TRY MAKES YOU STRONGER!","BELIEVE IN YOURSELF!","YOU ARE GETTING BETTER!","NEVER GIVE UP!"];
+try{best=Number(localStorage.getItem("flappyBest")||0)}catch(e){best=0}
+function resize(){
+ const r=game.getBoundingClientRect();W=r.width;H=r.height;
+ const dpr=Math.min(window.devicePixelRatio||1,2);
+ canvas.width=Math.round(W*dpr);canvas.height=Math.round(H*dpr);
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+}
+window.addEventListener("resize",resize);resize();
+function reset(){
+ bird={x:W*.27,y:H*.43,v:0,r:15,rotation:0};pipes=[];score=0;frame=0;theme=0;message="";messageTimer=0;
+ document.getElementById("score").textContent="0";
+ document.getElementById("message").textContent="Believe in yourself!";
+}
+function start(){
+ reset();running=true;started=true;
+ document.getElementById("overlay").style.display="none";
+}
+function flap(){
+ if(!running){if(!started)start();else return}
+ bird.v=-6.4;
+}
+function gameOver(){
+ if(!running)return;
+ running=false;started=true;
+ if(score>best){best=score;try{localStorage.setItem("flappyBest",String(best))}catch(e){}}
+ document.getElementById("title").textContent="GAME OVER";
+ document.getElementById("description").innerHTML="Score: "+score+"<br>Best: "+best+"<br><br>Every attempt makes you better!";
+ document.getElementById("start").textContent="PLAY AGAIN";
+ document.getElementById("overlay").style.display="flex";
+}
+document.getElementById("start").addEventListener("click",start);
+game.addEventListener("pointerdown",e=>{if(e.target.tagName!=="BUTTON"&&running)flap()});
+window.addEventListener("keydown",e=>{
+ if(e.code==="Space"||e.code==="ArrowUp"){e.preventDefault();if(!running&&!started)start();else flap()}
+});
+function drawBackground(){
+ const t=themes[theme],g=ctx.createLinearGradient(0,0,0,H);
+ g.addColorStop(0,t.sky);g.addColorStop(1,theme===2?"#40547a":"#e2f5ff");
+ ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
+ ctx.fillStyle=theme===2?"#fff2bb":"#fff5a5";ctx.beginPath();ctx.arc(W*.8,H*.16,35,0,Math.PI*2);ctx.fill();
+ for(let i=0;i<5;i++){
+  let x=((i*115-frame*.25)%(W+120)+W+120)%(W+120)-40;
+  ctx.fillStyle=theme===2?"#263c5b":"#ffffff88";ctx.beginPath();
+  ctx.arc(x,H*.3+i*30,23,0,Math.PI*2);ctx.arc(x+25,H*.3+i*30-8,28,0,Math.PI*2);ctx.arc(x+52,H*.3+i*30,22,0,Math.PI*2);ctx.fill();
+ }
+}
+function drawBird(){
+ ctx.save();ctx.translate(bird.x,bird.y);ctx.rotate(bird.rotation);
+ ctx.fillStyle="#ffce3a";ctx.beginPath();ctx.ellipse(0,0,18,14,0,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#f39c12";ctx.beginPath();ctx.ellipse(-10,4,10,6,-.5,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="white";ctx.beginPath();ctx.arc(9,-6,6,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#182338";ctx.beginPath();ctx.arc(11,-6,2.5,0,Math.PI*2);ctx.fill();
+ ctx.fillStyle="#ff783b";ctx.beginPath();ctx.moveTo(15,1);ctx.lineTo(28,5);ctx.lineTo(15,9);ctx.fill();
+ ctx.restore();
+}
+function drawPipes(){
+ pipes.forEach(p=>{
+  ctx.fillStyle=themes[theme].pipe;ctx.fillRect(p.x,0,p.w,p.top);ctx.fillRect(p.x,p.bottom,p.w,H-p.bottom-65);
+  ctx.fillStyle="#ffffff35";ctx.fillRect(p.x+7,0,6,p.top);ctx.fillRect(p.x+7,p.bottom,6,H-p.bottom-65);
+ });
+}
+function drawGround(){
+ ctx.fillStyle=themes[theme].ground;ctx.fillRect(0,H-65,W,65);
+ ctx.fillStyle="#d7e96d";ctx.fillRect(0,H-65,W,9);
+ for(let x=0;x<W;x+=30){ctx.fillStyle="#ffffff33";ctx.fillRect(x-(frame%30),H-45,15,5)}
+}
+function update(){
+ if(!running)return;
+ frame++;bird.v+=.34;bird.y+=bird.v;bird.rotation=Math.min(.9,Math.max(-.5,bird.v*.08));
+ if(frame%95===0){
+  const gap=Math.max(145,175-score*.5);
+  const top=100+Math.random()*Math.max(1,H-300-gap);
+  pipes.push({x:W,w:58,top,bottom:top+gap,passed:false});
+ }
+ pipes.forEach(p=>{
+  p.x-=2.7+Math.min(score*.04,2);
+  if(!p.passed&&p.x+p.w<bird.x){
+   p.passed=true;score++;document.getElementById("score").textContent=score;
+   const nextTheme=Math.min(3,Math.floor(score/5));if(nextTheme!==theme)theme=nextTheme;
+   if(score%3===0){message=messages[Math.floor(Math.random()*messages.length)];messageTimer=100;document.getElementById("message").textContent=message}
+  }
+  if(bird.x+bird.r>p.x&&bird.x-bird.r<p.x+p.w&&(bird.y-bird.r<p.top||bird.y+bird.r>p.bottom))gameOver();
+ });
+ pipes=pipes.filter(p=>p.x+p.w>0);
+ if(bird.y-bird.r<0||bird.y+bird.r>H-65)gameOver();
+ if(messageTimer>0){messageTimer--;if(messageTimer===0)document.getElementById("message").textContent="";}
+}
+function draw(){
+ drawBackground();drawPipes();drawGround();drawBird();
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+reset();loop();
+</script>
+</body>
+</html>
